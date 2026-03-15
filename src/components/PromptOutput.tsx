@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { AIModel } from "@/lib/models";
+import { enhancePrompt, EnhancedPrompt } from "@/lib/enhance";
 
 interface PromptOutputProps {
   prompt: string;
@@ -9,10 +10,10 @@ interface PromptOutputProps {
   params: Record<string, string | number>;
 }
 
-function buildFinalPrompt(prompt: string, model: AIModel, params: Record<string, string | number>): string {
-  if (!prompt.trim()) return "";
+function buildFinalPrompt(enhanced: EnhancedPrompt, model: AIModel, params: Record<string, string | number>): string {
+  if (!enhanced.text) return "";
 
-  let output = prompt;
+  let output = enhanced.text;
 
   // For Midjourney, append parameters as flags
   if (model.id === "midjourney") {
@@ -31,7 +32,9 @@ function buildFinalPrompt(prompt: string, model: AIModel, params: Record<string,
 
 export default function PromptOutput({ prompt, model, params }: PromptOutputProps) {
   const [copied, setCopied] = useState(false);
-  const finalPrompt = buildFinalPrompt(prompt, model, params);
+
+  const enhanced = useMemo(() => enhancePrompt(prompt, model), [prompt, model]);
+  const finalPrompt = buildFinalPrompt(enhanced, model, params);
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(finalPrompt);
@@ -61,6 +64,26 @@ export default function PromptOutput({ prompt, model, params }: PromptOutputProp
       <pre className="bg-card border border-accent/30 rounded-lg p-4 text-sm text-foreground whitespace-pre-wrap">
         {finalPrompt}
       </pre>
+
+      {/* Show what cinematography enhancements were added */}
+      {enhanced.enhancements.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[10px] uppercase tracking-wider text-muted">
+            Auto-enhanced with cinematography direction
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {enhanced.enhancements.map((e, i) => (
+              <span
+                key={i}
+                className="text-[10px] bg-accent-dim text-accent-hover px-2 py-0.5 rounded-full"
+              >
+                <span className="opacity-60">{e.category}:</span> {e.addition}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {model.id !== "midjourney" && Object.keys(params).length > 0 && (
         <div className="flex flex-wrap gap-2 mt-2">
           {Object.entries(params).map(([key, value]) => {
