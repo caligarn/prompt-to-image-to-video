@@ -169,14 +169,30 @@ const VIDEO_CATEGORIES: EnhancementCategory[] = [
   },
 ];
 
+// ── Category Icons (mapped by key) ──
+
+export const CATEGORY_ICONS: Record<string, string> = {
+  shot: "Frame",
+  angle: "Angle",
+  lens: "Lens",
+  lighting: "Light",
+  color: "Palette",
+  texture: "Film",
+  composition: "Stage",
+  movement: "Move",
+  pacing: "Tempo",
+};
+
 // ── Main Enhancement ──
 
 export interface Enhancement {
+  key: string;
   category: string;
   addition: string;
 }
 
 export interface EnhancedPrompt {
+  originalPrompt: string;
   text: string;
   enhancements: Enhancement[];
 }
@@ -187,7 +203,7 @@ function hasCategoryPresent(prompt: string, category: EnhancementCategory): bool
 }
 
 export function enhancePrompt(prompt: string, model: AIModel): EnhancedPrompt {
-  if (!prompt.trim()) return { text: "", enhancements: [] };
+  if (!prompt.trim()) return { originalPrompt: prompt, text: "", enhancements: [] };
 
   const categories = model.type === "video" ? VIDEO_CATEGORIES : IMAGE_CATEGORIES;
   const enhancements: Enhancement[] = [];
@@ -204,17 +220,23 @@ export function enhancePrompt(prompt: string, model: AIModel): EnhancedPrompt {
 
     const picked = pickRandom(available, category.pick);
     for (const term of picked) {
-      enhancements.push({ category: category.label, addition: term });
+      enhancements.push({ key: category.key, category: category.label, addition: term });
       additions.push(term);
     }
   }
 
-  if (additions.length === 0) return { text: prompt, enhancements: [] };
+  if (additions.length === 0) return { originalPrompt: prompt, text: prompt, enhancements: [] };
 
   // Build enhanced prompt — append as a cinematography direction block
   const directionBlock = additions.join(", ");
   const separator = prompt.endsWith(".") || prompt.endsWith(",") || prompt.endsWith(";") ? " " : ". ";
   const enhanced = `${prompt.trimEnd()}${separator}${directionBlock}`;
 
-  return { text: enhanced, enhancements };
+  return { originalPrompt: prompt, text: enhanced, enhancements };
+}
+
+/** Get all category labels and keys for a model type */
+export function getCategoryInfo(modelType: "image" | "video"): { key: string; label: string }[] {
+  const cats = modelType === "video" ? VIDEO_CATEGORIES : IMAGE_CATEGORIES;
+  return cats.map((c) => ({ key: c.key, label: c.label }));
 }
